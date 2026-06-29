@@ -1,6 +1,6 @@
 # Heat Stress Reinsurance Workbench
 
-[Open the working browser preview](https://raw.githack.com/RomanMski/europe-heatwave-reinsurance-risk-monitor/preview-ready-2026-06-30/docs/index.html)
+[Open the working browser preview](https://romanmski.github.io/europe-heatwave-reinsurance-risk-monitor/)
 
 ![Browser preview](docs/assets/browser-preview.png)
 
