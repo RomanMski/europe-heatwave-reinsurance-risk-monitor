@@ -1,16 +1,16 @@
 # Heat Stress Reinsurance Workbench
 
-![Preview](docs/assets/preview.svg)
+[Open the working browser preview](https://raw.githack.com/RomanMski/europe-heatwave-reinsurance-risk-monitor/main/docs/index.html)
 
-I built this because a heatwave is not just a weather story for an insurer. It can hit health, agriculture, energy demand, infrastructure and business interruption at the same time. The interesting question is not only "how hot is it?" but "where does the portfolio start to behave badly, and would the contract actually respond?"
+![Browser preview](docs/assets/browser-preview.png)
 
-The browser preview is meant to be the first click:
+I built this because a heatwave is not just a weather story for an insurer. It can hit health, agriculture, energy demand, infrastructure and business interruption at the same time. The interesting question is not only how hot it is. The more useful question is where a portfolio starts to behave badly, and whether the contract wording would actually respond.
 
-[Open the interactive preview](https://romanmski.github.io/europe-heatwave-reinsurance-risk-monitor/)
+The browser preview is the first thing to open. It loads as a static page, so nobody has to install Python just to understand the idea. You can move the trigger percentile, streak length, notional, payout rate and cap, then watch the risk map, underwriting queue, payout sensitivity, basis risk view and forward heat stress chart update together.
 
-The preview has scenario controls, a Europe risk map, an underwriting queue, a trigger sensitivity view, a basis-risk scatter and a forward climate stress chart. The full Streamlit version in `app.py` goes deeper and can refresh the live weather data.
+The full Streamlit version in `app.py` goes deeper and can refresh the weather data. The static preview uses cached Open Meteo data so the public link stays fast and easy to open from GitHub.
 
-This is not pretending to be a production catastrophe model. It is a portfolio project showing the workflow: fetch current weather, build local thresholds from 1991 to 2020 climatology, score heat stress by line of business, test a parametric trigger, then ask where basis risk appears.
+This is not pretending to be a production catastrophe model. It is a portfolio project showing the workflow in a transparent way: fetch current weather, compare each city with its own 1991 to 2020 climate history, score heat stress by line of business, test a parametric trigger, then ask where basis risk appears.
 
 To run the full app locally on Windows, double-click `run_local.bat`. From a terminal you can also run:
 

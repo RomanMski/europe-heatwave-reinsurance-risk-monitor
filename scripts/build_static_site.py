@@ -244,7 +244,7 @@ HTML = r'''<!doctype html>
       background: var(--soft);
     }
     a { color: var(--teal); font-weight: 700; text-decoration-thickness: 1px; }
-    main { max-width: 1220px; margin: 0 auto; padding: 24px 18px 56px; }
+    main { max-width: 1280px; margin: 0 auto; padding: 22px 18px 56px; }
     .topbar {
       display: flex;
       justify-content: space-between;
@@ -256,35 +256,35 @@ HTML = r'''<!doctype html>
     }
     .topbar nav { display: flex; gap: 14px; flex-wrap: wrap; }
     .hero {
-      min-height: 78vh;
       display: grid;
-      grid-template-columns: minmax(0, 0.84fr) minmax(420px, 1.16fr);
+      grid-template-columns: minmax(360px, 0.78fr) minmax(560px, 1.22fr);
       gap: 18px;
-      align-items: stretch;
+      align-items: start;
     }
+    .hero > *, .visual, .intro, .panel, .chart, .table-panel, .note { min-width: 0; }
     .intro, .panel, .metric, .control, .chart, .note, .table-panel {
       background: var(--paper);
       border: 1px solid var(--line);
       border-radius: 8px;
     }
-    .intro { padding: 30px; display: flex; flex-direction: column; justify-content: space-between; }
+    .intro { padding: 26px 28px; display: flex; flex-direction: column; gap: 20px; }
     h1 {
-      margin: 0 0 18px;
-      font-size: clamp(2.3rem, 5vw, 5.4rem);
-      line-height: 0.96;
+      margin: 0 0 16px;
+      font-size: clamp(2.35rem, 4vw, 4.25rem);
+      line-height: 1.01;
       letter-spacing: 0;
       color: #102a43;
     }
     h2 { margin: 0 0 12px; color: #102a43; font-size: 1.55rem; }
     h3 { margin: 0 0 8px; color: #102a43; font-size: 1.1rem; }
-    p { color: var(--muted); line-height: 1.65; font-size: 1.02rem; }
-    .intro p { font-size: 1.08rem; }
-    .signature { margin-top: 22px; color: var(--ink); font-weight: 700; }
+    p { color: var(--muted); line-height: 1.58; font-size: 1.01rem; }
+    .intro p { font-size: 1.02rem; }
+    .signature { margin: 0; color: var(--ink); font-weight: 700; }
     .live-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
-    .metric { padding: 16px; min-height: 112px; }
-    .metric span { display: block; color: var(--muted); font-size: 0.9rem; margin-bottom: 12px; }
-    .metric strong { display: block; font-size: clamp(2rem, 4vw, 3.25rem); line-height: 1; }
-    .metric small { display: block; color: var(--teal); margin-top: 10px; font-weight: 700; }
+    .metric { padding: 14px 16px; min-height: 96px; }
+    .metric span { display: block; color: var(--muted); font-size: 0.88rem; margin-bottom: 10px; }
+    .metric strong { display: block; font-size: clamp(1.8rem, 3vw, 2.65rem); line-height: 1; }
+    .metric small { display: block; color: var(--teal); margin-top: 8px; font-weight: 700; font-size: 0.88rem; }
     .visual { display: grid; grid-template-rows: auto 1fr; gap: 12px; }
     .controls {
       display: grid;
@@ -303,10 +303,10 @@ HTML = r'''<!doctype html>
     }
     input[type="range"] { accent-color: var(--teal); }
     .control b { font-size: 1.1rem; }
-    .map-panel { min-height: 570px; padding: 10px; }
+    .map-panel { min-height: 510px; padding: 10px; }
     .chart { min-height: 390px; padding: 12px; }
-    .chart svg, .map-panel svg { width: 100%; height: 100%; min-height: 360px; display: block; }
-    .map-panel svg { min-height: 540px; }
+    .chart svg, .map-panel svg { width: 100%; max-width: 100%; height: 100%; min-height: 360px; display: block; }
+    .map-panel svg { min-height: 490px; }
     .axis { stroke: #cbd5e1; stroke-width: 1; }
     .gridline { stroke: #edf2f7; stroke-width: 1; }
     .chart-title { font: 700 20px Inter, Arial, sans-serif; fill: #102a43; }
@@ -333,15 +333,25 @@ HTML = r'''<!doctype html>
     .region-row:hover td { background: #f8fafc; }
     .footer { color: var(--muted); font-size: 0.95rem; margin-top: 20px; }
     @media (max-width: 1020px) {
-      .hero, .two, .three { grid-template-columns: 1fr; }
+      .hero, .two, .three { grid-template-columns: minmax(0, 1fr); width: 100%; }
       .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .map-panel { min-height: 420px; }
+      .visual { margin-top: 18px; }
     }
     @media (max-width: 640px) {
-      main { padding: 14px; }
+      main { width: 100%; padding: 14px; overflow-x: hidden; }
+      .hero, .two, .three, .visual, .intro, .panel, .chart, .table-panel, .note { width: 100%; max-width: 100%; }
       .topbar { align-items: flex-start; flex-direction: column; }
+      .topbar > div { max-width: 100%; overflow-wrap: anywhere; }
       .intro { padding: 22px; }
+      h1 { font-size: clamp(2.15rem, 11vw, 2.95rem); }
+      p { font-size: 0.98rem; line-height: 1.56; }
+      .signature { font-size: 0.92rem; overflow-wrap: anywhere; }
       .live-grid, .controls { grid-template-columns: 1fr; }
+      .map-panel { min-height: 360px; }
+      .map-panel svg { min-height: 350px; }
+      .chart { min-height: 330px; overflow: hidden; }
+      .chart svg { min-height: 310px; }
       .queue { font-size: 0.86rem; }
       .queue th:nth-child(3), .queue td:nth-child(3) { display: none; }
     }
@@ -350,7 +360,7 @@ HTML = r'''<!doctype html>
 <body>
   <main>
     <div class="topbar">
-      <div>Roman Mirosenski | finance maths | data and risk project</div>
+      <div>Roman Mirosenski | heat risk data project</div>
       <nav>
         <a href="#contract">contract lab</a>
         <a href="#forward">forward stress</a>
@@ -372,7 +382,7 @@ HTML = r'''<!doctype html>
             <div class="metric"><span>scenario payout</span><strong id="metric-payout">-</strong><small>selected notional</small></div>
             <div class="metric"><span>basis-risk flags</span><strong id="metric-basis">-</strong><small>stress that wording may miss</small></div>
           </div>
-          <p class="signature">Generated from cached Open Meteo data for <span id="analysis-date">-</span>.</p>
+          <p class="signature">Data date <span id="analysis-date">-</span>. Source cached Open Meteo weather.</p>
         </div>
       </div>
 
