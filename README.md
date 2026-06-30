@@ -1,4 +1,4 @@
-# Heat Stress Reinsurance Workbench
+# Live Heat Stress Risk Monitor
 
 [Open the working browser preview](https://romanmski.github.io/europe-heatwave-reinsurance-risk-monitor/)
 
