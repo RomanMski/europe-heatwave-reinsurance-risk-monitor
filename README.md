@@ -4,13 +4,15 @@
 
 ![Browser preview](docs/assets/browser-preview.png)
 
-I built this because a heatwave is not just a weather story for an insurer or an energy desk. It can hit health, agriculture, power demand, infrastructure and business interruption at the same time. The useful question is not only how hot it is. It is where stress is building, and whether the trigger or risk process actually catches it.
+I built this project because I wanted to make something around a real event, not another clean notebook with perfect data and no context. A heatwave is not just weather. It can affect health, agriculture, power demand, infrastructure, transport, business interruption and insurance exposure at the same time.
 
-The browser preview is the first thing to open. It runs directly from GitHub Pages, tries to refresh the latest Open-Meteo forecast inside the browser, and keeps a cached run embedded so the page still opens if the live API is blocked. You can move the trigger percentile, streak length, notional, payout rate, cap and map coloring, then watch the map, watchlist, contract sensitivity, basis-risk view and forward stress chart update together.
+The idea was to build a small risk monitor that someone could actually open during a heat event and understand quickly. It should answer basic but important questions. Which regions look stressed right now? Is the stress mostly health, agriculture, energy, infrastructure or business interruption? Would a simple parametric trigger respond, or would there be basis risk where the situation looks bad but the payout stays at zero?
 
-The full Streamlit version in `app.py` goes deeper for local analysis. The public page is the fast version for a recruiter or hiring manager: open it, interact with it, and see the logic without installing anything.
+The public version runs directly in the browser through GitHub Pages. It tries to refresh the latest Open-Meteo forecast data when the page opens. If that request fails, it still works from an embedded cached run, so the page does not break or open blank. The map, watchlist and charts update when the trigger threshold, streak length, notional, payout rate, cap or map color are changed.
 
-This is not pretending to be a production catastrophe model. It is a portfolio project showing the workflow in a transparent way: fetch current weather, compare each city with its own 1991 to 2020 climate history, score heat stress by line of business, test a parametric trigger, then ask where basis risk appears.
+Under the hood, each city is compared with its own 1991 to 2020 summer climate baseline. The model then builds a transparent heat stress score and splits it into practical pressure points. I kept the assumptions visible on purpose, because for risk work I think it is more useful to see what drives the result than to hide everything inside a black box.
+
+This is not meant to be a production catastrophe model or underwriting tool. It does not use real insured values, claims, policy wording, treaty terms or accumulation data. The point is to show that I can take a live external event, fetch and structure data, make reasonable assumptions, build an interactive tool and communicate the result in a way that is actually usable.
 
 To run the full app locally on Windows, double-click `run_local.bat`. From a terminal you can also run:
 
@@ -18,7 +20,3 @@ To run the full app locally on Windows, double-click `run_local.bat`. From a ter
 python -m pip install -r requirements.txt
 streamlit run app.py
 ```
-
-The model is deliberately transparent. Heat severity uses anomaly, local percentile exceedance, heat streaks and heat degree days. The stress modules then apply simple exposure proxies for life and health, agriculture, energy, infrastructure and business interruption. Scenario payouts are based on a user-selected notional, payout rate and cap.
-
-Important caveat: this is not underwriting advice and it does not use real insured values, claims, policy wording, treaty terms or insurer accumulation data. Those would be needed before anything commercial. The goal here is to show that I can take a current event and turn it into a useful analytical product rather than just another notebook.
