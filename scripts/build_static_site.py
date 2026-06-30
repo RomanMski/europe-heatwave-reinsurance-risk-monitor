@@ -522,6 +522,8 @@ HTML = r'''<!doctype html>
     .queue th { color: #102a43; }
     .region-row { cursor: pointer; }
     .region-row:hover td { background: #f7fafc; }
+    .region-row.active-row td { background: #ecfdf5; }
+    .region-row.active-row td:first-child { box-shadow: inset 4px 0 0 var(--teal); }
     .badge {
       display: inline-flex;
       align-items: center;
@@ -774,7 +776,7 @@ HTML = r'''<!doctype html>
       document.getElementById("notional-label").textContent = `CHF ${state.notional}m`;
       document.getElementById("rate-label").textContent = state.rate.toFixed(2);
       document.getElementById("cap-label").textContent = `${Math.round(state.cap * 100)}%`;
-      document.getElementById("source-note").textContent = `${view.live ? "Live" : "Cached"} data date ${view.analysisDate}. Source ${view.source}.`;
+      document.getElementById("source-note").textContent = `${view.live ? "Live" : "Cached"} data date ${view.analysisDate}. Source ${view.source}. CHF values are contract-response scenarios, not insured-loss estimates.`;
     }
     function updateMetrics(rows) {
       const leader = rows[0];
@@ -826,7 +828,8 @@ HTML = r'''<!doctype html>
         const labelLeft = x > 760;
         const labelX = labelLeft ? x - radius - 7 : x + radius + 7;
         const labelAnchor = labelLeft ? "end" : "start";
-        return `<g class="city-dot" data-city="${row.city}">
+        return `<g class="city-dot" data-city="${row.city}" tabindex="0" role="button" aria-label="Open ${row.city}" style="cursor:pointer">
+          <circle cx="${x}" cy="${y}" r="${radius + 13}" fill="transparent" stroke="transparent" pointer-events="all"/>
           <circle cx="${x}" cy="${y}" r="${radius + (selected ? 4 : 0)}" fill="${selected ? "#102a43" : "#fff"}" opacity="${selected ? 0.95 : 0.65}"/>
           <circle cx="${x}" cy="${y}" r="${radius}" fill="${colorFor(row)}" stroke="#fff" stroke-width="2"/>
           <text x="${labelX}" y="${y + 4}" text-anchor="${labelAnchor}" class="chart-small">${row.city}</text>
@@ -856,11 +859,18 @@ HTML = r'''<!doctype html>
         state.focus = el.dataset.city;
         renderAll();
       }));
+      document.querySelectorAll(".city-dot").forEach(el => el.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          state.focus = el.dataset.city;
+          renderAll();
+        }
+      }));
     }
     function renderQueue(rows) {
       const body = document.getElementById("queue-body");
       body.innerHTML = rows.slice(0, 10).map(row => `
-        <tr class="region-row" data-city="${row.city}">
+        <tr class="region-row ${row.city === state.focus ? "active-row" : ""}" data-city="${row.city}">
           <td>${row.city}, ${row.country}</td>
           <td>${row.score.toFixed(1)}</td>
           <td>${driver(row)}</td>
@@ -891,26 +901,24 @@ HTML = r'''<!doctype html>
       return "#f8fafc";
     }
     function renderDrivers(rows) {
-      const top = rows.slice(0, 8).reverse();
-      const maxTotal = Math.max(...top.map(row => MODULES.reduce((sum, name) => sum + row.stress[name], 0)), 1);
-      const bars = top.map((row, idx) => {
-        let x = 152;
-        const y = 320 - idx * 34;
-        const parts = MODULES.map((name, moduleIdx) => {
-          const w = scale(row.stress[name], 0, maxTotal, 0, 520);
-          const rect = `<rect x="${x}" y="${y - 17}" width="${w}" height="20" rx="3" fill="${MODULE_COLORS[moduleIdx]}"><title>${row.city} | ${name} ${row.stress[name].toFixed(1)}</title></rect>`;
-          x += w;
-          return rect;
-        }).join("");
-        return `<text x="24" y="${y}" class="chart-label">${row.city}</text>${parts}<text x="${Math.min(x + 8, 724)}" y="${y}" class="chart-small">${row.score.toFixed(1)}</text>`;
+      const focus = rows.find(row => row.city === state.focus) || rows[0];
+      const maxStress = Math.max(...MODULES.map(name => focus.stress[name]), 1);
+      const bars = MODULES.map((name, idx) => {
+        const value = focus.stress[name];
+        const width = scale(value, 0, Math.max(100, maxStress), 0, 500);
+        const y = 112 + idx * 48;
+        return `
+          <text x="24" y="${y}" class="chart-label">${name}</text>
+          <rect x="176" y="${y - 18}" width="500" height="24" rx="5" fill="#eef4f8"/>
+          <rect x="176" y="${y - 18}" width="${width}" height="24" rx="5" fill="${MODULE_COLORS[idx]}"><title>${name} ${value.toFixed(1)}</title></rect>
+          <text x="${Math.min(690, 184 + width)}" y="${y}" class="chart-small">${value.toFixed(1)}</text>
+        `;
       }).join("");
-      const legend = MODULES.map((name, idx) => `<rect x="${24 + idx * 136}" y="364" width="12" height="12" fill="${MODULE_COLORS[idx]}"/><text x="${42 + idx * 136}" y="375" class="chart-tiny">${name}</text>`).join("");
       document.getElementById("drivers").innerHTML = `
         <svg viewBox="0 0 760 410" role="img" aria-label="Stress driver bars">
-          <text x="24" y="34" class="chart-title">What is actually driving the score</text>
-          <text x="24" y="58" class="chart-label">The score is split into insurance and operations pressure points, not only temperature.</text>
+          <text x="24" y="34" class="chart-title">${focus.city}: what is actually driving the score</text>
+          <text x="24" y="58" class="chart-label">Selected-city split across insurance and operations pressure points. Composite score: ${focus.score.toFixed(1)}.</text>
           ${bars}
-          ${legend}
         </svg>`;
     }
     function renderSensitivity() {
@@ -1305,7 +1313,7 @@ HTML = r'''<!doctype html>
       try {
         const live = await fetchLiveWeather();
         view = live;
-        state.focus = live.regions[0].city;
+        if (!live.regions.some(row => row.city === state.focus)) state.focus = live.regions[0].city;
         setStatus("live weather loaded", "live");
         renderAll();
       } catch (error) {
