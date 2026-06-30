@@ -1,26 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675">
 <style>
-.bg { fill: #f4f7f9; }
-.panel { fill: #fff; stroke: #dbe4ea; stroke-width: 1; }
-.title { font: 700 52px Arial, sans-serif; fill: #102a43; }
-.copy { font: 400 23px Arial, sans-serif; fill: #425466; }
-.metric { font: 700 52px Arial, sans-serif; fill: #172033; }
+.bg { fill: #f3f6f8; }
+.panel { fill: #fff; stroke: #d8e1e8; stroke-width: 1; }
+.title { font: 700 50px Arial, sans-serif; fill: #102a43; }
+.copy { font: 400 22px Arial, sans-serif; fill: #425466; }
+.metric { font: 700 48px Arial, sans-serif; fill: #172033; }
 .note { font: 400 18px Arial, sans-serif; fill: #425466; }
 .city { font: 700 20px Arial, sans-serif; fill: #172033; }
 </style>
 <rect class="bg" width="1200" height="675"/>
-<rect class="panel" x="44" y="38" width="1112" height="598" rx="10"/>
-<text x="80" y="112" class="title">Heat Stress Reinsurance Workbench</text>
-<text x="80" y="154" class="copy">A current heat event turned into a reinsurance trigger and basis-risk view.</text>
-<rect class="panel" x="80" y="195" width="245" height="98" rx="8"/>
+<rect class="panel" x="44" y="38" width="1112" height="598" rx="8"/>
+<text x="80" y="112" class="title">Live Heat Stress Risk Monitor</text>
+<text x="80" y="154" class="copy">A browser-ready heat stress, trigger and basis-risk workbench.</text>
+<rect class="panel" x="80" y="195" width="245" height="98" rx="7"/>
 <text x="102" y="232" class="note">Highest region</text>
-<text x="102" y="275" class="metric">Vienna</text>
-<rect class="panel" x="350" y="195" width="245" height="98" rx="8"/>
+<text x="102" y="275" class="metric">Rome</text>
+<rect class="panel" x="350" y="195" width="245" height="98" rx="7"/>
 <text x="372" y="232" class="note">Risk score</text>
-<text x="372" y="275" class="metric">66.8</text>
-<rect class="panel" x="620" y="195" width="245" height="98" rx="8"/>
-<text x="642" y="232" class="note">Analysis date</text>
-<text x="642" y="275" class="metric">2026-06-29</text>
-<text x="80" y="354" class="copy">Current underwriting queue</text>
-<text x="84" y="320" class="city">Vienna</text><rect x="255" y="302" width="307" height="18" rx="5" fill="#0f766e"/><text x="577" y="320" class="note">66.8</text><text x="84" y="363" class="city">Rome</text><rect x="255" y="345" width="289" height="18" rx="5" fill="#0f766e"/><text x="559" y="363" class="note">63.0</text><text x="84" y="406" class="city">Warsaw</text><rect x="255" y="388" width="287" height="18" rx="5" fill="#0f766e"/><text x="557" y="406" class="note">62.5</text><text x="84" y="449" class="city">Milan</text><rect x="255" y="431" width="268" height="18" rx="5" fill="#0f766e"/><text x="538" y="449" class="note">58.3</text><text x="84" y="492" class="city">Marseille</text><rect x="255" y="474" width="206" height="18" rx="5" fill="#0f766e"/><text x="476" y="492" class="note">44.8</text>
+<text x="372" y="275" class="metric">63.2</text>
+<rect class="panel" x="620" y="195" width="245" height="98" rx="7"/>
+<text x="642" y="232" class="note">Fallback data date</text>
+<text x="642" y="275" class="metric">2026-06-30</text>
+<text x="80" y="364" class="copy">Current watchlist ranking</text>
+<text x="84" y="330" class="city">Rome</text><rect x="255" y="312" width="297" height="18" rx="4" fill="#0f766e"/><text x="567" y="330" class="note">63.2</text><text x="84" y="373" class="city">Vienna</text><rect x="255" y="355" width="248" height="18" rx="4" fill="#0f766e"/><text x="518" y="373" class="note">52.8</text><text x="84" y="416" class="city">Marseille</text><rect x="255" y="398" width="209" height="18" rx="4" fill="#0f766e"/><text x="479" y="416" class="note">44.6</text><text x="84" y="459" class="city">Barcelona</text><rect x="255" y="441" width="199" height="18" rx="4" fill="#0f766e"/><text x="469" y="459" class="note">42.4</text><text x="84" y="502" class="city">Milan</text><rect x="255" y="484" width="195" height="18" rx="4" fill="#0f766e"/><text x="465" y="502" class="note">41.6</text>
 </svg>

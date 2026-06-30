@@ -4,11 +4,11 @@
 
 ![Browser preview](docs/assets/browser-preview.png)
 
-I built this because a heatwave is not just a weather story for an insurer. It can hit health, agriculture, energy demand, infrastructure and business interruption at the same time. The interesting question is not only how hot it is. The more useful question is where a portfolio starts to behave badly, and whether the contract wording would actually respond.
+I built this because a heatwave is not just a weather story for an insurer or an energy desk. It can hit health, agriculture, power demand, infrastructure and business interruption at the same time. The useful question is not only how hot it is. It is where stress is building, and whether the trigger or risk process actually catches it.
 
-The browser preview is the first thing to open. It loads as a static page, so nobody has to install Python just to understand the idea. You can move the trigger percentile, streak length, notional, payout rate and cap, then watch the risk map, underwriting queue, payout sensitivity, basis risk view and forward heat stress chart update together.
+The browser preview is the first thing to open. It runs directly from GitHub Pages, tries to refresh the latest Open-Meteo forecast inside the browser, and keeps a cached run embedded so the page still opens if the live API is blocked. You can move the trigger percentile, streak length, notional, payout rate, cap and map coloring, then watch the map, watchlist, contract sensitivity, basis-risk view and forward stress chart update together.
 
-The full Streamlit version in `app.py` goes deeper and can refresh the weather data. The static preview uses cached Open Meteo data so the public link stays fast and easy to open from GitHub.
+The full Streamlit version in `app.py` goes deeper for local analysis. The public page is the fast version for a recruiter or hiring manager: open it, interact with it, and see the logic without installing anything.
 
 This is not pretending to be a production catastrophe model. It is a portfolio project showing the workflow in a transparent way: fetch current weather, compare each city with its own 1991 to 2020 climate history, score heat stress by line of business, test a parametric trigger, then ask where basis risk appears.
 
