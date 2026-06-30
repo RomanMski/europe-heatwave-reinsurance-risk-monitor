@@ -520,6 +520,7 @@ HTML = r'''<!doctype html>
     .queue { width: 100%; border-collapse: collapse; font-size: 0.94rem; }
     .queue th, .queue td { padding: 12px 10px; border-bottom: 1px solid #edf2f7; text-align: left; }
     .queue th { color: #102a43; }
+    .queue td:nth-child(2), .queue td:nth-child(4), .queue td:nth-child(5) { white-space: nowrap; }
     .region-row { cursor: pointer; }
     .region-row:hover td { background: #f7fafc; }
     .region-row.active-row td { background: #ecfdf5; }
@@ -533,6 +534,7 @@ HTML = r'''<!doctype html>
       font-weight: 800;
       background: #eef7f5;
       color: #0f766e;
+      white-space: nowrap;
     }
     .badge.off { background: #f1f5f9; color: #475569; }
     .note { padding: 22px; }
@@ -749,8 +751,20 @@ HTML = r'''<!doctype html>
         y: scale(lat, MAP.latMin, MAP.latMax, MAP.height, 0)
       };
     }
+    const DRIVER_READS = {
+      "Life and health": "The main read is health pressure: high heat against a local baseline, with population exposure making the signal matter more than the raw temperature alone.",
+      "Agriculture": "The main read is agricultural stress: heat, dryness and local exposure are lining up, so crop and irrigation pressure would be the first thing I would check.",
+      "Energy": "The main read is energy stress: the signal is less about one hot day and more about cooling demand, peak load and how long the heat stays above local norms.",
+      "Infrastructure": "The main read is infrastructure stress: heat can move from weather into rail, roads, power equipment and service reliability when the streak keeps going.",
+      "Business interruption": "The main read is business interruption: operations can still be affected even when the trigger does not pay, especially where heat persists over several working days."
+    };
     function driver(row) {
       return Object.entries(row.stress).sort((a, b) => b[1] - a[1])[0][0];
+    }
+    function cityRank(row) {
+      const rows = currentRows();
+      const rank = rows.findIndex(item => item.city === row.city) + 1;
+      return rank > 0 ? `ranked ${rank} of ${rows.length}` : "inside the watchlist";
     }
     function scenario(row, overrides = {}) {
       const pct = overrides.pct || state.pct;
@@ -765,6 +779,11 @@ HTML = r'''<!doctype html>
     }
     function currentRows() {
       return view.regions.map(row => scenario(row)).sort((a, b) => b.score - a.score);
+    }
+    function selectCity(city) {
+      if (!city) return;
+      state.focus = city;
+      renderAll();
     }
     function setStatus(text, mode) {
       const el = document.getElementById("data-status");
@@ -856,20 +875,18 @@ HTML = r'''<!doctype html>
           </g>
         </svg>`;
       document.querySelectorAll(".city-dot").forEach(el => el.addEventListener("click", () => {
-        state.focus = el.dataset.city;
-        renderAll();
+        selectCity(el.dataset.city);
       }));
       document.querySelectorAll(".city-dot").forEach(el => el.addEventListener("keydown", event => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          state.focus = el.dataset.city;
-          renderAll();
+          selectCity(el.dataset.city);
         }
       }));
     }
     function renderQueue(rows) {
       const body = document.getElementById("queue-body");
-      body.innerHTML = rows.slice(0, 10).map(row => `
+      body.innerHTML = rows.map(row => `
         <tr class="region-row ${row.city === state.focus ? "active-row" : ""}" data-city="${row.city}">
           <td>${row.city}, ${row.country}</td>
           <td>${row.score.toFixed(1)}</td>
@@ -879,8 +896,7 @@ HTML = r'''<!doctype html>
         </tr>
       `).join("");
       body.querySelectorAll("tr").forEach(row => row.addEventListener("click", () => {
-        state.focus = row.dataset.city;
-        renderAll();
+        selectCity(row.dataset.city);
       }));
     }
     function polyline(points) { return points.map(point => `${point[0].toFixed(1)},${point[1].toFixed(1)}`).join(" "); }
@@ -1002,8 +1018,7 @@ HTML = r'''<!doctype html>
           <circle cx="620" cy="58" r="6" fill="${COLORS.slate}"/><text x="632" y="63" class="chart-label">no payout</text>
         </svg>`;
       document.querySelectorAll(".basis-dot").forEach(el => el.addEventListener("click", () => {
-        state.focus = el.dataset.city;
-        renderAll();
+        selectCity(el.dataset.city);
       }));
     }
     function renderTimeline() {
@@ -1043,12 +1058,17 @@ HTML = r'''<!doctype html>
     function renderFocusCopy() {
       const row = scenario(view.regions.find(item => item.city === state.focus) || view.regions[0]);
       const missed = !row.active && row.score >= quantile(view.regions.map(item => item.score), 0.5);
+      const lead = driver(row);
+      const triggerGap = row.temp - row.threshold;
+      const triggerLine = row.active
+        ? `The selected p${state.pct} wording is live because the ${row.streaks[state.pct]} day streak clears the ${state.streak} day requirement.`
+        : `The selected p${state.pct} wording is not live because the ${row.streaks[state.pct]} day streak does not clear the ${state.streak} day requirement.`;
       document.getElementById("focus-title").textContent = `${row.city} read`;
       document.getElementById("focus-copy").textContent =
-        `${row.city} is at ${row.temp.toFixed(1)} deg C, ${row.anomaly.toFixed(1)} deg C above its local summer normal. Under the selected p${state.pct} trigger it is ${row.active ? "active" : "not active"}, with ${row.eventDegreeDays.toFixed(1)} heat degree days in the event window and ${money(row.payout)} of scenario payout.`;
+        `${row.city}, ${row.country}, is ${cityRank(row)} on the current run with a score of ${row.score.toFixed(1)}. It is at ${row.temp.toFixed(1)} deg C, ${row.anomaly.toFixed(1)} deg C above its local summer normal and ${signed(triggerGap)} deg C versus the selected p${state.pct} trigger. ${DRIVER_READS[lead]}`;
       document.getElementById("focus-next").textContent = missed
-        ? `This is the uncomfortable case: meaningful stress, but no trigger response. I would check attachment points, waiting periods and whether the chosen weather station matches the exposure.`
-        : `Main driver right now: ${driver(row).toLowerCase()}. I would compare that with actual exposure data before treating the score as more than a triage signal.`;
+        ? `${triggerLine} That is the basis-risk case I would flag: meaningful stress, but no contract response. I would check attachment points, waiting periods and whether the chosen weather station matches the exposure.`
+        : `${triggerLine} The event window has ${row.eventDegreeDays.toFixed(1)} heat degree days and ${money(row.payout)} of scenario payout under the selected notional. I would still compare this with real exposure data before treating it as more than a triage signal.`;
     }
     function renderClimateContext() {
       const meta = focusRegionMeta();
@@ -1098,8 +1118,17 @@ HTML = r'''<!doctype html>
       });
       const payouts = projection.rows.map(row => row.max_streak >= state.streak ? Math.min(row.local_hdd * state.rate * state.notional, state.cap * state.notional) : 0);
       const activeRate = projection.rows.filter(row => row.max_streak >= state.streak).length / projection.rows.length;
+      const earlyMean = avg(yearStats.slice(0, 3).map(row => row.mean));
+      const lateMean = avg(yearStats.slice(-3).map(row => row.mean));
+      const trend = lateMean - earlyMean;
+      const p95Payout = quantile(payouts, 0.95);
+      const forwardTake = activeRate >= 0.6
+        ? "That makes this a wording-stability case: the trigger would fire often enough that attachment, cap and aggregation rules matter."
+        : activeRate >= 0.25
+          ? "That makes this a monitoring case: the trigger does not fire every summer, but warmer scenarios start to make the wording relevant."
+          : "That makes this mostly an early-warning case: the city can still have heat stress, but the current wording remains selective in the model summers.";
       document.getElementById("forward-copy").textContent =
-        `${focus.city} uses a local p98 threshold of ${projection.threshold.toFixed(1)} deg C in the forward stress panel. In these local trend scenarios, the current streak wording activates in ${(activeRate * 100).toFixed(0)}% of model summers. The high-end scenario payout is ${money(quantile(payouts, 0.95))}.`;
+        `${focus.city} uses a local p98 threshold of ${projection.threshold.toFixed(1)} deg C in the forward stress panel. Average days above that threshold move from about ${earlyMean.toFixed(1)} to ${lateMean.toFixed(1)} by the end of the stress window, a ${signed(trend)} day shift. The current streak wording activates in ${(activeRate * 100).toFixed(0)}% of model summers and the high-end scenario payout is ${money(p95Payout)}. ${forwardTake}`;
       const maxY = Math.ceil(Math.max(...yearStats.map(row => row.high)) + 3);
       const maxPayout = Math.max(...yearStats.map(row => row.payout95), 1);
       const xFor = index => scale(index, 0, Math.max(yearStats.length - 1, 1), 86, 690);
@@ -1123,7 +1152,7 @@ HTML = r'''<!doctype html>
       document.getElementById("forward-chart").innerHTML = `
         <svg viewBox="0 0 760 380" role="img" aria-label="Forward heat stress chart">
           <text x="24" y="34" class="chart-title">${focus.city}: forward stress by summer</text>
-          <text x="24" y="58" class="chart-label">Bars show average days above local p98. Vertical pins show scenario spread. Purple bars show high-end payout.</text>
+          <text x="24" y="58" class="chart-label">City-specific stress test: average days above local p98, scenario spread and p95 payout under current terms.</text>
           <line x1="74" x2="700" y1="306" y2="306" class="axis"/><line x1="74" x2="74" y1="84" y2="306" class="axis"/>
           <text x="28" y="91" class="chart-label">${maxY} days</text><text x="38" y="309" class="chart-label">0</text>
           ${bars}
