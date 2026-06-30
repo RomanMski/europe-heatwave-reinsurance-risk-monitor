@@ -152,20 +152,35 @@ def baseline_lookup(regions: pd.DataFrame) -> dict[str, dict[str, dict[str, floa
         payload = json.loads(cache_file.read_text(encoding="utf-8"))
         frame = pd.DataFrame(payload["daily"])
         frame["date"] = pd.to_datetime(frame.pop("time"))
+        frame = frame[frame["date"].dt.year >= 2001].copy()
         frame["month_day"] = frame["date"].dt.strftime("%m-%d")
         grouped = frame.groupby("month_day")["temperature_2m_max"]
         stats = grouped.agg(
+            min="min",
+            p10=lambda values: values.quantile(0.10),
+            p25=lambda values: values.quantile(0.25),
             mean="mean",
+            p50=lambda values: values.quantile(0.50),
+            p75=lambda values: values.quantile(0.75),
+            p90=lambda values: values.quantile(0.90),
             p95=lambda values: values.quantile(0.95),
             p98=lambda values: values.quantile(0.98),
             p99=lambda values: values.quantile(0.99),
+            max="max",
         )
         lookup[region_id] = {
             str(month_day): {
+                "min": clean_float(row["min"], 2),
+                "p10": clean_float(row["p10"], 2),
+                "p25": clean_float(row["p25"], 2),
                 "mean": clean_float(row["mean"], 2),
+                "p50": clean_float(row["p50"], 2),
+                "p75": clean_float(row["p75"], 2),
+                "p90": clean_float(row["p90"], 2),
                 "p95": clean_float(row["p95"], 2),
                 "p98": clean_float(row["p98"], 2),
                 "p99": clean_float(row["p99"], 2),
+                "max": clean_float(row["max"], 2),
             }
             for month_day, row in stats.iterrows()
         }
@@ -520,6 +535,37 @@ HTML = r'''<!doctype html>
     .badge.off { background: #f1f5f9; color: #475569; }
     .note { padding: 22px; }
     .note p:last-child { margin-bottom: 0; }
+    .context-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .context-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #f8fafc;
+    }
+    .context-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 7px;
+    }
+    .context-item strong {
+      display: block;
+      color: var(--ink);
+      font-size: 1.34rem;
+      line-height: 1.05;
+    }
+    .context-item small {
+      display: block;
+      color: var(--teal);
+      font-weight: 700;
+      margin-top: 7px;
+      line-height: 1.3;
+    }
     .footer { color: var(--muted); font-size: 0.95rem; margin-top: 20px; }
     @media (max-width: 1120px) {
       .hero, .two, .three { grid-template-columns: minmax(0, 1fr); }
@@ -537,6 +583,7 @@ HTML = r'''<!doctype html>
       p { font-size: 0.98rem; }
       .intro p, .source-note { overflow-wrap: anywhere; }
       .metrics, .controls { grid-template-columns: minmax(0, 1fr); }
+      .context-grid { grid-template-columns: minmax(0, 1fr); }
       .map-panel { min-height: 420px; }
       .map-panel svg { min-height: 395px; }
       .chart { min-height: 340px; }
@@ -618,6 +665,7 @@ HTML = r'''<!doctype html>
         <h2 id="focus-title">City read</h2>
         <p id="focus-copy">-</p>
         <p id="focus-next">-</p>
+        <div id="climate-context" class="context-grid"></div>
       </div>
     </section>
 
@@ -678,6 +726,16 @@ HTML = r'''<!doctype html>
       const base = Math.floor(pos);
       const rest = pos - base;
       return sorted[base + 1] !== undefined ? sorted[base] + rest * (sorted[base + 1] - sorted[base]) : sorted[base];
+    }
+    function avg(values) {
+      const clean = values.filter(v => Number.isFinite(v));
+      return clean.length ? clean.reduce((sum, value) => sum + value, 0) / clean.length : 0;
+    }
+    function signed(value) {
+      return `${value >= 0 ? "+" : ""}${value.toFixed(1)}`;
+    }
+    function focusRegionMeta() {
+      return CACHE.region_meta.find(row => row.city === state.focus) || CACHE.region_meta[0];
     }
     function scale(value, min, max, a, b) {
       if (max === min) return (a + b) / 2;
@@ -887,24 +945,53 @@ HTML = r'''<!doctype html>
     }
     function renderBasis(rows) {
       const maxPayout = Math.max(...rows.map(row => row.payout), 1);
+      const scores = rows.map(row => row.score);
+      const minScore = Math.max(0, Math.floor(Math.min(...scores) - 5));
+      const maxScore = Math.ceil(Math.max(...scores) + 5);
+      const scoreCut = quantile(scores, 0.5);
+      const xFor = score => scale(score, minScore, maxScore, 92, 690);
+      const yFor = payout => scale(payout, 0, maxPayout, 306, 92);
+      const cutX = xFor(scoreCut);
+      const xLabels = [minScore, Math.round(scoreCut), maxScore].map(score =>
+        `<text x="${xFor(score)}" y="333" text-anchor="middle" class="chart-label">${score}</text>`
+      ).join("");
       const dots = rows.map(row => {
-        const x = scale(row.score, 0, 100, 78, 690);
-        const y = scale(row.payout, 0, maxPayout, 304, 82);
+        const x = xFor(row.score);
+        const y = yFor(row.payout);
         const radius = Math.max(6, 5 + row.eventDegreeDays * 0.38);
         return `<g data-city="${row.city}" class="basis-dot" style="cursor:pointer">
           <circle cx="${x}" cy="${y}" r="${radius}" fill="${row.active ? COLORS.red : COLORS.slate}" opacity="0.86" stroke="#fff" stroke-width="1.5"/>
           <title>${row.city} | score ${row.score.toFixed(1)} | ${money(row.payout)} | ${row.activeText}</title>
         </g>`;
       }).join("");
+      const activeLabels = rows
+        .filter(row => row.active)
+        .sort((a, b) => b.score - a.score)
+        .map(row => `<text x="${xFor(row.score)}" y="78" text-anchor="middle" class="chart-small">${row.city}</text>`)
+        .join("");
+      const missed = rows.filter(row => !row.active).sort((a, b) => b.score - a.score)[0];
+      const missedLabel = missed
+        ? `<line x1="${xFor(missed.score)}" x2="${xFor(missed.score) + 20}" y1="${yFor(missed.payout)}" y2="${yFor(missed.payout) - 18}" stroke="#94a3b8"/>
+           <text x="${xFor(missed.score) + 24}" y="${yFor(missed.payout) - 21}" class="chart-small">${missed.city}</text>`
+        : "";
       document.getElementById("basis").innerHTML = `
         <svg viewBox="0 0 760 360" role="img" aria-label="Basis risk scatter">
           <text x="24" y="34" class="chart-title">Basis risk check</text>
-          <text x="24" y="58" class="chart-label">High stress with no payout is where the wording deserves another look.</text>
-          <line x1="78" x2="690" y1="304" y2="304" class="axis"/><line x1="78" x2="78" y1="82" y2="304" class="axis"/>
-          <text x="585" y="334" class="chart-label">risk score</text><text x="20" y="92" class="chart-label">payout</text>
+          <text x="24" y="58" class="chart-label">Red dots paid. Grey dots in the watch area show stress the wording does not catch.</text>
+          <rect x="${cutX}" y="224" width="${690 - cutX}" height="82" fill="#fff7ed" stroke="none"/>
+          <rect x="${cutX}" y="92" width="${690 - cutX}" height="132" fill="rgba(239,68,68,0.06)" stroke="none"/>
+          <line x1="${cutX}" x2="${cutX}" y1="92" y2="306" stroke="#94a3b8" stroke-dasharray="5 5"/>
+          <line x1="92" x2="690" y1="306" y2="306" class="axis"/><line x1="92" x2="92" y1="92" y2="306" class="axis"/>
+          <text x="584" y="248" class="chart-label">watch wording</text>
+          <text x="584" y="112" class="chart-label">triggered cover</text>
+          <text x="594" y="350" class="chart-label">risk score</text><text x="24" y="84" class="chart-label">payout</text>
+          <text x="50" y="310" class="chart-label">0</text><text x="28" y="106" class="chart-label">${money(maxPayout)}</text>
+          ${xLabels}
           ${dots}
-          <circle cx="540" cy="58" r="6" fill="${COLORS.red}"/><text x="552" y="63" class="chart-label">active</text>
-          <circle cx="620" cy="58" r="6" fill="${COLORS.slate}"/><text x="632" y="63" class="chart-label">not active</text>
+          ${activeLabels}
+          ${missedLabel}
+          <circle cx="540" cy="58" r="6" fill="${COLORS.red}"/><text x="552" y="63" class="chart-label">payout</text>
+          <circle cx="620" cy="58" r="6" fill="${COLORS.slate}"/><text x="632" y="63" class="chart-label">no payout</text>
         </svg>`;
       document.querySelectorAll(".basis-dot").forEach(el => el.addEventListener("click", () => {
         state.focus = el.dataset.city;
@@ -914,29 +1001,35 @@ HTML = r'''<!doctype html>
     function renderTimeline() {
       const rows = view.timeline[state.focus] || view.timeline[view.regions[0].city] || [];
       if (!rows.length) return;
-      const values = rows.flatMap(row => [row.temp, row.normal, row[`p${state.pct}`]]);
+      const meta = focusRegionMeta();
+      const baselines = rows.map(row => baselineFor(meta.region_id, row.date));
+      const values = rows.flatMap((row, i) => [row.temp, baselines[i].p10, baselines[i].p90, baselines[i][`p${state.pct}`]]);
       const minY = Math.floor(Math.min(...values) - 2);
       const maxY = Math.ceil(Math.max(...values) + 2);
       const xFor = idx => scale(idx, 0, Math.max(rows.length - 1, 1), 70, 700);
       const yFor = value => scale(value, minY, maxY, 304, 84);
       const tempPts = rows.map((row, i) => [xFor(i), yFor(row.temp)]);
-      const normalPts = rows.map((row, i) => [xFor(i), yFor(row.normal)]);
-      const thresholdPts = rows.map((row, i) => [xFor(i), yFor(row[`p${state.pct}`])]);
+      const normalPts = rows.map((row, i) => [xFor(i), yFor(baselines[i].mean)]);
+      const lowPts = rows.map((row, i) => yFor(baselines[i].p10));
+      const highPts = rows.map((row, i) => yFor(baselines[i].p90));
+      const xs = rows.map((row, i) => xFor(i));
+      const thresholdPts = rows.map((row, i) => [xFor(i), yFor(baselines[i][`p${state.pct}`])]);
       const circles = tempPts.map((point, i) => `<circle cx="${point[0]}" cy="${point[1]}" r="4" fill="${COLORS.red}"><title>${rows[i].date} | ${rows[i].temp} deg C</title></circle>`).join("");
       document.getElementById("timeline").innerHTML = `
         <svg viewBox="0 0 760 380" role="img" aria-label="City heat timeline">
-          <text x="24" y="34" class="chart-title">${state.focus}: weather against local history</text>
-          <text x="24" y="58" class="chart-label">Daily max, local normal and selected trigger threshold.</text>
+          <text x="24" y="34" class="chart-title">${state.focus}: current weather vs 20-year range</text>
+          <text x="24" y="58" class="chart-label">Red line is current weather. Blue band is the 2001 to 2020 p10-p90 range for the same calendar days.</text>
           <line x1="70" x2="700" y1="304" y2="304" class="axis"/><line x1="70" x2="70" y1="84" y2="304" class="axis"/>
           <text x="18" y="90" class="chart-label">${maxY} deg C</text><text x="18" y="306" class="chart-label">${minY} deg C</text>
+          <path d="${areaPath(xs, highPts, lowPts)}" fill="rgba(37,99,235,0.12)" stroke="none"/>
           <polyline points="${polyline(normalPts)}" fill="none" stroke="${COLORS.slate}" stroke-width="2" stroke-dasharray="5 5"/>
           <polyline points="${polyline(thresholdPts)}" fill="none" stroke="#111827" stroke-width="2" stroke-dasharray="8 5"/>
           <polyline points="${polyline(tempPts)}" fill="none" stroke="${COLORS.red}" stroke-width="3"/>
           ${circles}
           <text x="72" y="345" class="chart-label">${rows[0].date}</text><text x="610" y="345" class="chart-label">${rows[rows.length - 1].date}</text>
-          <rect x="405" y="28" width="12" height="12" fill="${COLORS.red}"/><text x="423" y="39" class="chart-label">daily max</text>
-          <rect x="512" y="28" width="12" height="12" fill="${COLORS.slate}"/><text x="530" y="39" class="chart-label">normal</text>
-          <rect x="600" y="28" width="12" height="12" fill="#111827"/><text x="618" y="39" class="chart-label">p${state.pct}</text>
+          <rect x="372" y="28" width="12" height="12" fill="rgba(37,99,235,0.22)"/><text x="390" y="39" class="chart-label">20y p10-p90</text>
+          <rect x="492" y="28" width="12" height="12" fill="${COLORS.red}"/><text x="510" y="39" class="chart-label">current</text>
+          <rect x="582" y="28" width="12" height="12" fill="#111827"/><text x="600" y="39" class="chart-label">p${state.pct}</text>
         </svg>`;
     }
     function renderFocusCopy() {
@@ -949,6 +1042,29 @@ HTML = r'''<!doctype html>
         ? `This is the uncomfortable case: meaningful stress, but no trigger response. I would check attachment points, waiting periods and whether the chosen weather station matches the exposure.`
         : `Main driver right now: ${driver(row).toLowerCase()}. I would compare that with actual exposure data before treating the score as more than a triage signal.`;
     }
+    function renderClimateContext() {
+      const meta = focusRegionMeta();
+      const rows = view.timeline[state.focus] || view.timeline[view.regions[0].city] || [];
+      if (!rows.length || !meta) return;
+      const pastRows = rows.filter(row => row.date <= view.analysisDate);
+      const windowRows = (pastRows.length ? pastRows : rows).slice(-10);
+      const baselineRows = windowRows.map(row => baselineFor(meta.region_id, row.date));
+      const currentAvg = avg(windowRows.map(row => row.temp));
+      const currentLow = Math.min(...windowRows.map(row => row.temp));
+      const currentHigh = Math.max(...windowRows.map(row => row.temp));
+      const histAvg = avg(baselineRows.map(row => row.mean));
+      const histLow = avg(baselineRows.map(row => row.p10));
+      const histHigh = avg(baselineRows.map(row => row.p90));
+      const todayRow = windowRows[windowRows.length - 1];
+      const todayBaseline = baselineFor(meta.region_id, todayRow.date);
+      const triggerGap = todayRow.temp - todayBaseline[`p${state.pct}`];
+      document.getElementById("climate-context").innerHTML = `
+        <div class="context-item"><span>10-day current avg</span><strong>${currentAvg.toFixed(1)} deg C</strong><small>${signed(currentAvg - histAvg)} deg C vs 2001-2020 average</small></div>
+        <div class="context-item"><span>2001-2020 typical range</span><strong>${histLow.toFixed(1)}-${histHigh.toFixed(1)} deg C</strong><small>p10-p90 for the same calendar days</small></div>
+        <div class="context-item"><span>current 10-day range</span><strong>${currentLow.toFixed(1)}-${currentHigh.toFixed(1)} deg C</strong><small>actual observed/forecast window</small></div>
+        <div class="context-item"><span>trigger distance today</span><strong>${signed(triggerGap)} deg C</strong><small>against local p${state.pct}</small></div>
+      `;
+    }
     function renderForward() {
       const focus = view.regions.find(row => row.city === state.focus) || view.regions[0];
       const projection = CACHE.projections[focus.region_id] || CACHE.projections[view.regions[0].region_id];
@@ -956,34 +1072,55 @@ HTML = r'''<!doctype html>
       const byYear = {};
       projection.rows.forEach(row => {
         byYear[row.year] ||= [];
-        byYear[row.year].push(row.extreme_days);
+        byYear[row.year].push(row);
       });
       const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
-      const mean = years.map(year => byYear[year].reduce((a, b) => a + b, 0) / byYear[year].length);
-      const low = years.map(year => quantile(byYear[year], 0.1));
-      const high = years.map(year => quantile(byYear[year], 0.9));
+      const yearStats = years.map(year => {
+        const rows = byYear[year];
+        const extremeDays = rows.map(row => row.extreme_days);
+        const payouts = rows.map(row => row.max_streak >= state.streak ? Math.min(row.local_hdd * state.rate * state.notional, state.cap * state.notional) : 0);
+        return {
+          year,
+          mean: avg(extremeDays),
+          low: quantile(extremeDays, 0.1),
+          high: quantile(extremeDays, 0.9),
+          activeShare: rows.filter(row => row.max_streak >= state.streak).length / rows.length,
+          payout95: quantile(payouts, 0.95)
+        };
+      });
       const payouts = projection.rows.map(row => row.max_streak >= state.streak ? Math.min(row.local_hdd * state.rate * state.notional, state.cap * state.notional) : 0);
       const activeRate = projection.rows.filter(row => row.max_streak >= state.streak).length / projection.rows.length;
       document.getElementById("forward-copy").textContent =
         `${focus.city} uses a local p98 threshold of ${projection.threshold.toFixed(1)} deg C in the forward stress panel. In these local trend scenarios, the current streak wording activates in ${(activeRate * 100).toFixed(0)}% of model summers. The high-end scenario payout is ${money(quantile(payouts, 0.95))}.`;
-      const maxY = Math.ceil(Math.max(...high) + 3);
-      const xFor = year => scale(year, years[0], years[years.length - 1], 74, 700);
+      const maxY = Math.ceil(Math.max(...yearStats.map(row => row.high)) + 3);
+      const maxPayout = Math.max(...yearStats.map(row => row.payout95), 1);
+      const xFor = index => scale(index, 0, Math.max(yearStats.length - 1, 1), 86, 690);
       const yFor = value => scale(value, 0, maxY, 306, 84);
-      const xs = years.map(xFor);
-      const highPts = high.map(yFor);
-      const lowPts = low.map(yFor);
-      const meanPts = years.map((year, i) => [xFor(year), yFor(mean[i])]);
-      const markers = meanPts.map((point, i) => `<circle cx="${point[0]}" cy="${point[1]}" r="4.5" fill="${COLORS.teal}"><title>${years[i]} | ${mean[i].toFixed(1)} days</title></circle>`).join("");
+      const bars = yearStats.map((row, i) => {
+        const x = xFor(i);
+        const barWidth = 34;
+        const yMean = yFor(row.mean);
+        const yLow = yFor(row.low);
+        const yHigh = yFor(row.high);
+        const fill = row.activeShare >= 0.65 ? COLORS.red : row.activeShare >= 0.35 ? COLORS.amber : COLORS.teal;
+        const payoutHeight = scale(row.payout95, 0, maxPayout, 0, 54);
+        return `
+          <line x1="${x}" x2="${x}" y1="${yHigh}" y2="${yLow}" stroke="#475569" stroke-width="2"/>
+          <rect x="${x - barWidth / 2}" y="${yMean}" width="${barWidth}" height="${306 - yMean}" rx="4" fill="${fill}" opacity="0.82"/>
+          <circle cx="${x}" cy="${yMean}" r="4.5" fill="#102a43"><title>${row.year} | avg ${row.mean.toFixed(1)} days | p10-p90 ${row.low.toFixed(1)}-${row.high.toFixed(1)} | ${money(row.payout95)}</title></circle>
+          <rect x="${x - barWidth / 2}" y="${330 - payoutHeight}" width="${barWidth}" height="${payoutHeight}" rx="3" fill="${COLORS.purple}" opacity="0.55"/>
+          <text x="${x}" y="352" text-anchor="middle" class="chart-tiny">${String(row.year).slice(2)}</text>
+        `;
+      }).join("");
       document.getElementById("forward-chart").innerHTML = `
         <svg viewBox="0 0 760 380" role="img" aria-label="Forward heat stress chart">
-          <text x="24" y="34" class="chart-title">${focus.city}: days above local p98</text>
-          <text x="24" y="58" class="chart-label">Band shows scenario spread, line shows the average.</text>
+          <text x="24" y="34" class="chart-title">${focus.city}: forward stress by summer</text>
+          <text x="24" y="58" class="chart-label">Bars show average days above local p98. Vertical pins show scenario spread. Purple bars show high-end payout.</text>
           <line x1="74" x2="700" y1="306" y2="306" class="axis"/><line x1="74" x2="74" y1="84" y2="306" class="axis"/>
           <text x="28" y="91" class="chart-label">${maxY} days</text><text x="38" y="309" class="chart-label">0</text>
-          <path d="${areaPath(xs, highPts, lowPts)}" fill="rgba(37,99,235,0.14)" stroke="none"/>
-          <polyline points="${polyline(meanPts)}" fill="none" stroke="${COLORS.teal}" stroke-width="3"/>
-          ${markers}
-          <text x="76" y="345" class="chart-label">${years[0]}</text><text x="660" y="345" class="chart-label">${years[years.length - 1]}</text>
+          ${bars}
+          <rect x="410" y="28" width="12" height="12" fill="${COLORS.red}" opacity="0.82"/><text x="428" y="39" class="chart-label">higher activation</text>
+          <rect x="550" y="28" width="12" height="12" fill="${COLORS.purple}" opacity="0.55"/><text x="568" y="39" class="chart-label">p95 payout</text>
         </svg>`;
     }
     function renderAll() {
@@ -997,15 +1134,17 @@ HTML = r'''<!doctype html>
       renderBasis(rows);
       renderTimeline();
       renderFocusCopy();
+      renderClimateContext();
       renderForward();
     }
     function baselineFor(regionId, dateText) {
+      const fallback = { min: 22, p10: 24, p25: 26, mean: 28, p50: 28, p75: 31, p90: 33, p95: 34, p98: 35, p99: 36, max: 38 };
       const table = CACHE.baselines[regionId] || {};
       const direct = table[monthDay(dateText)];
-      if (direct) return direct;
+      if (direct) return { ...fallback, ...direct };
       const values = Object.values(table);
-      if (!values.length) return { mean: 28, p95: 33, p98: 35, p99: 36 };
-      return values[Math.floor(values.length / 2)];
+      if (!values.length) return fallback;
+      return { ...fallback, ...values[Math.floor(values.length / 2)] };
     }
     function scoreFrameRow(row, popMax) {
       const populationIndex = clamp(row.population_million / Math.max(popMax, 1), 0, 1);
